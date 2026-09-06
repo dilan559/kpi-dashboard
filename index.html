@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Warehouse KPI Dashboard-By Dilan Rajapaksha</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --ink:#1A2027; --surface:#FFFFFF; --bg:#EDF0F2; --steel:#3D6E8C; --steel-dark:#2C526B;
+    --amber:#C8791E; --rust:#B5482E; --moss:#4F7A54; --line:#DADFE3; --muted:#697580;
+  }
+  * { box-sizing:border-box; }
+  body {
+    font-family:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background:var(--bg); color:var(--ink); margin:0; padding:20px 16px 48px;
+  }
+  .wrap { max-width:1100px; margin:0 auto; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+  header h1 { font-family:'Space Grotesk', sans-serif; font-size:22px; font-weight:600; margin:0 0 4px; letter-spacing:-0.01em; }
+  header p { margin:0; color:var(--muted); font-size:13px; max-width:520px; }
+  .reset-all { display:none; align-items:center; gap:6px; background:none; border:1px solid var(--line); color:var(--muted); padding:7px 12px; border-radius:6px; font-size:12.5px; cursor:pointer; }
+  .reset-all:hover { border-color:var(--steel); color:var(--steel-dark); }
+
+  .uploads { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px; }
+  @media (max-width:720px){ .uploads { grid-template-columns:1fr; } }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .card-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .eyebrow { font-size:11px; color:var(--steel-dark); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+  .card-title { font-family:'Space Grotesk', sans-serif; font-size:16px; margin:2px 0 0; font-weight:600; }
+
+  .drop { display:flex; flex-direction:column; align-items:center; gap:8px; border:1.5px dashed var(--line); border-radius:8px; padding:26px 10px; cursor:pointer; color:var(--muted); font-size:13px; }
+  .drop:hover { border-color:var(--steel); color:var(--steel-dark); }
+
+  .alert { display:flex; gap:8px; align-items:flex-start; background:#FBF0E4; color:#8A5312; border:1px solid #EFCFA0; border-radius:6px; padding:8px 10px; font-size:12.5px; margin:8px 0; }
+
+  .loaded-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .filename { font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; }
+  .rowcount { font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); }
+
+  .linklike { display:inline-flex; align-items:center; gap:4px; background:none; border:none; color:var(--steel-dark); font-size:12.5px; cursor:pointer; padding:4px 0; font-weight:500; }
+  .reset-file { color:var(--muted); margin-top:4px; display:block; }
+
+  .mapgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; background:#F7F8F9; border:1px solid var(--line); border-radius:8px; padding:12px; margin:6px 0 4px; }
+  @media (max-width:520px){ .mapgrid { grid-template-columns:1fr; } }
+  .mapfield { display:flex; flex-direction:column; gap:4px; }
+  .mapfield label { font-size:11.5px; color:var(--muted); font-weight:500; }
+  .req { color:var(--rust); margin-left:2px; }
+  .mapfield select { padding:6px 8px; border:1px solid var(--line); border-radius:5px; font-size:12.5px; background:var(--surface); color:var(--ink); }
+  .btn { grid-column:1/-1; background:var(--steel); color:#fff; border:none; border-radius:6px; padding:9px; font-size:13px; font-weight:600; cursor:pointer; margin-top:2px; }
+  .btn:disabled { background:#B9C3CA; cursor:not-allowed; }
+  .btn:not(:disabled):hover { background:var(--steel-dark); }
+
+  .placeholder { text-align:center; padding:40px 20px; color:var(--muted); font-size:13.5px; }
+
+  .kpigrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  @media (max-width:860px){ .kpigrid { grid-template-columns:repeat(2,1fr); } }
+
+  .kpi { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .kpi-icon { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; margin-bottom:10px; font-size:14px; }
+  .tone-steel { background:var(--steel); } .tone-amber { background:var(--amber); }
+  .tone-rust { background:var(--rust); } .tone-moss { background:var(--moss); }
+  .kpi-value { font-family:'IBM Plex Mono', monospace; font-size:22px; font-weight:600; line-height:1.1; }
+  .kpi-label { font-size:12px; color:var(--muted); margin-top:4px; }
+  .kpi-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .charts { display:grid; grid-template-columns:1.3fr 1fr; gap:14px; margin-bottom:20px; }
+  @media (max-width:820px){ .charts { grid-template-columns:1fr; } }
+  .chartcard { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  .chartcard h4 { font-family:'Space Grotesk', sans-serif; font-size:14px; margin:0 0 14px; font-weight:600; }
+
+  .bars-row { display:flex; align-items:flex-end; gap:10px; height:180px; padding:0 4px; }
+  .bar-group { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; min-width:0; }
+  .bar-pair { display:flex; align-items:flex-end; gap:3px; height:150px; width:100%; justify-content:center; }
+  .bar { width:14px; border-radius:2px 2px 0 0; position:relative; }
+  .bar-gr { background:var(--moss); } .bar-gi { background:var(--rust); } .bar-loc { background:var(--steel); }
+  .bar-label { font-size:10.5px; color:var(--muted); margin-top:6px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:60px; }
+  .legend { display:flex; gap:14px; font-size:11.5px; color:var(--muted); margin-top:10px; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .swatch { width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+  .loc-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .loc-name { font-size:12px; width:90px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .loc-track { flex:1; background:#F0F1F2; border-radius:3px; height:14px; overflow:hidden; }
+  .loc-fill { background:var(--steel); height:100%; border-radius:3px; }
+  .loc-val { font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); width:60px; text-align:right; flex-shrink:0; }
+
+  .lists { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:820px){ .lists { grid-template-columns:1fr; } }
+  .listcard { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .listcard h4 { font-family:'Space Grotesk', sans-serif; font-size:13.5px; margin:0 0 8px; font-weight:600; }
+  .listrow { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; padding:5px 0; border-bottom:1px solid #F0F1F2; }
+  .listrow span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .listrow span:last-child { font-family:'IBM Plex Mono', monospace; color:var(--muted); flex-shrink:0; }
+  .listmore { font-size:11.5px; color:var(--steel-dark); background:none; border:none; cursor:pointer; margin-top:6px; padding:0; font-weight:500; }
+
+/* --- Enhanced colorful dashboard --- */
+body {
+  background:
+    radial-gradient(circle at 8% 5%, rgba(83, 129, 191, .20), transparent 28%),
+    radial-gradient(circle at 92% 8%, rgba(226, 126, 72, .18), transparent 26%),
+    linear-gradient(135deg, #eef5ff 0%, #f8f4ff 48%, #fff6ef 100%);
+}
+header h1 {
+  font-size:26px;
+  background:linear-gradient(90deg,#2948ff,#8e44ad 55%,#e67e22);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.dashboard-shell {
+  background:rgba(255,255,255,.60);
+  border:1px solid rgba(255,255,255,.8);
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 12px 40px rgba(36,55,80,.10);
+  backdrop-filter:blur(8px);
+}
+.filters {
+  display:grid;
+  grid-template-columns:minmax(190px, .75fr) minmax(280px, 1.25fr) auto;
+  gap:12px;
+  margin-bottom:16px;
+}
+@media(max-width:760px){ .filters{grid-template-columns:1fr;} }
+.filter-box {
+  background:#fff;
+  border:1px solid #dbe2ea;
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow:0 4px 14px rgba(36,55,80,.06);
+}
+.filter-box label {
+  display:block;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:#667483;
+  font-weight:700;
+  margin-bottom:5px;
+}
+.filter-box select {
+  width:100%;
+  border:0;
+  outline:0;
+  background:transparent;
+  color:#18212b;
+  font-size:13px;
+  font-weight:600;
+}
+.filter-status {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 14px;
+  border-radius:12px;
+  background:linear-gradient(135deg,#243b53,#496a88);
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+}
+.kpi { box-shadow:0 6px 18px rgba(36,55,80,.07); transition:transform .15s, box-shadow .15s; }
+.kpi:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(36,55,80,.12); }
+.kpi:nth-child(1) .kpi-icon { background:linear-gradient(135deg,#396afc,#2948ff); }
+.kpi:nth-child(2) .kpi-icon { background:linear-gradient(135deg,#16a085,#2ecc71); }
+.kpi:nth-child(3) .kpi-icon { background:linear-gradient(135deg,#e74c3c,#ff7675); }
+.kpi:nth-child(4) .kpi-icon { background:linear-gradient(135deg,#8e44ad,#9b59b6); }
+.kpi:nth-child(5) .kpi-icon { background:linear-gradient(135deg,#f39c12,#f1c40f); }
+.kpi:nth-child(6) .kpi-icon { background:linear-gradient(135deg,#00a8ff,#0097e6); }
+.kpi:nth-child(7) .kpi-icon { background:linear-gradient(135deg,#00b894,#55efc4); }
+.kpi:nth-child(8) .kpi-icon { background:linear-gradient(135deg,#e67e22,#f5b041); }
+.kpi:nth-child(9) .kpi-icon { background:linear-gradient(135deg,#c0392b,#e74c3c); }
+.kpi:nth-child(10) .kpi-icon { background:linear-gradient(135deg,#34495e,#5d6d7e); }
+.kpi:nth-child(11) .kpi-icon { background:linear-gradient(135deg,#0984e3,#74b9ff); }
+.chartcard,.listcard { box-shadow:0 6px 18px rgba(36,55,80,.06); }
+.item-selected {
+  margin:-4px 0 14px;
+  padding:9px 12px;
+  border-radius:10px;
+  background:linear-gradient(90deg,rgba(57,106,252,.10),rgba(142,68,173,.08));
+  border:1px solid rgba(57,106,252,.18);
+  color:#31455d;
+  font-size:12px;
+}
+
+/* --- colorful accent bars for professional feel --- */
+.chartcard, .listcard { position:relative; overflow:hidden; }
+.chartcard::before, .listcard::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:4px;
+  background:linear-gradient(90deg,#396afc,#2948ff 25%,#8e44ad 55%,#e67e22 78%,#e74c3c);
+}
+.chartcard, .listcard { padding-top:18px; }
+
+/* --- consumption trend chart --- */
+.trend-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:2px; }
+.trend-note { font-size:11.5px; color:var(--muted); margin:-7px 0 12px; }
+.trend-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border-radius:20px; font-size:11.5px; font-weight:700; }
+.trend-up { background:linear-gradient(135deg,rgba(22,160,133,.16),rgba(46,204,113,.16)); color:#1a7a4c; }
+.trend-down { background:linear-gradient(135deg,rgba(231,76,60,.16),rgba(255,118,117,.16)); color:#a5311f; }
+.trend-flat { background:linear-gradient(135deg,rgba(61,110,140,.16),rgba(142,68,173,.10)); color:#3D6E8C; }
+.trend-legend { display:flex; gap:16px; font-size:11.5px; color:var(--muted); margin-top:8px; flex-wrap:wrap; }
+.trend-legend span { display:inline-flex; align-items:center; gap:5px; }
+.trend-swatch { width:16px; height:3px; border-radius:2px; display:inline-block; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Warehouse KPI Dashboard</h1>
+      <p>Upload your raw MB51 (movements) and MB52 (stock) exports, in their default SAP layout — the dashboard pulls only the columns it needs.</p>
+    </div>
+    <button class="reset-all" id="resetAllBtn" onclick="resetAll()">↺ Start over</button>
+  </header>
+
+  <div class="uploads">
+    <div class="card" id="card-mb51"></div>
+    <div class="card" id="card-mb52"></div>
+  </div>
+
+  <div id="dashboardArea"></div>
+</div>
+
+<script>
+// ---------- state ----------
+function emptyFileState() {
+  return { status:'empty', fileName:null, headers:null, rawRows:null, mapping:{}, rows:null, error:null };
+}
+const state = { mb51: emptyFileState(), mb52: emptyFileState() };
+const listExpand = { fastMoving:false, slowMoving:false, nonMoving:false };
+
+const FIELD_DEFS = {
+  mb51: [
+    { key:'material', label:'Material', required:true, candidates:['material','matnr'] },
+    { key:'quantity', label:'Quantity', required:true, candidates:['quantityinunitofentry','quantityinune','qtyinunitofentry','quantity','qty'] },
+    { key:'postingDate', label:'Posting Date', required:true, candidates:['postingdate','pstngdate','docdate','date'] },
+    { key:'debitCredit', label:'Debit/Credit Indicator', required:false, candidates:['debitcreditind','debitcredit','dcind','dcindicator','shkzg'] },
+    { key:'movementType', label:'Movement Type', required:false, candidates:['movementtype','mvttype','mvt','bwart'] },
+    { key:'storageLocation', label:'Storage Location', required:false, candidates:['stgeloc','storageloc','sloc'] },
+    { key:'materialDescription', label:'Material Description', required:false, candidates:['materialdescription','description','shorttext','matldesc','matdesc'] },
+  ],
+  mb52: [
+    { key:'material', label:'Material', required:true, candidates:['material','matnr'] },
+    { key:'stockQty', label:'Stock Quantity', required:true, candidates:['unrestricteduse','unrestricted','stock','quantity','qty'] },
+    { key:'storageLocation', label:'Storage Location', required:false, candidates:['stgeloc','storageloc','sloc'] },
+    { key:'baseUoM', label:'Base Unit of Measure', required:false, candidates:['baseunitofmeasure','baseuom','bun','unit'] },
+    { key:'materialDescription', label:'Material Description', required:false, candidates:['materialdescription','description','shorttext','matldesc','matdesc'] },
+  ],
+};
+
+// ---------- helpers ----------
+function norm(s){ return String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function guessColumn(headers, candidates){
+  const normed = headers.map(h => ({h, n:norm(h)}));
+  for (const cand of candidates){
+    const found = normed.find(x => x.n.includes(cand));
+    if (found) return found.h;
+  }
+  return null;
+}
+function parseSAPNumber(val){
+  if (typeof val === 'number') return val;
+  if (val == null) return 0;
+  let s = String(val).trim();
+  if (s === '' || s === '-') return 0;
+  let neg = false;
+  if (s.endsWith('-')) { neg = true; s = s.slice(0,-1).trim(); }
+  if (s.startsWith('(') && s.endsWith(')')) { neg = true; s = s.slice(1,-1); }
+  s = s.replace(/,/g,'');
+  const n = parseFloat(s);
+  if (isNaN(n)) return 0;
+  return neg ? -n : n;
+}
+function parseSAPDate(val){
+  if (val instanceof Date && !isNaN(val)) return val;
+  if (typeof val === 'number'){
+    try { const d = XLSX.SSF.parse_date_code(val); if (d) return new Date(d.y, d.m-1, d.d); } catch(e){}
+  }
+  if (typeof val === 'string'){
+    const s = val.trim();
+    let m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(+m[3], +m[1]-1, +m[2]);
+    const d2 = new Date(s);
+    if (!isNaN(d2)) return d2;
+  }
+  return null;
+}
+const fmtInt = n => (n==null||isNaN(n)) ? '—' : Math.round(n).toLocaleString();
+const fmtDec = (n,d=2) => (n==null||isNaN(n)) ? '—' : n.toFixed(d);
+function esc(s){ const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+
+function readSheet(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type:'array', cellDates:true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header:1, raw:false, defval:'' });
+        const rows = json.filter(r => r.some(c => String(c).trim() !== ''));
+        if (rows.length < 2) return reject(new Error('No data rows found in this file.'));
+        resolve({ headers: rows[0].map(h => String(h).trim()), rawRows: rows.slice(1) });
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+function buildMapping(headers, defs){
+  const mapping = {};
+  defs.forEach(d => { mapping[d.key] = guessColumn(headers, d.candidates); });
+  return mapping;
+}
+function finalizeRows(headers, rawRows, mapping, kind){
+  const idx = {};
+  Object.entries(mapping).forEach(([k,h]) => { idx[k] = h ? headers.indexOf(h) : -1; });
+  return rawRows.map(r => {
+    if (kind === 'mb51'){
+      return {
+        material: idx.material>=0 ? String(r[idx.material]).trim() : '',
+        quantity: idx.quantity>=0 ? parseSAPNumber(r[idx.quantity]) : 0,
+        date: idx.postingDate>=0 ? parseSAPDate(r[idx.postingDate]) : null,
+        dc: idx.debitCredit>=0 ? String(r[idx.debitCredit]).trim().toUpperCase() : null,
+        storageLocation: idx.storageLocation>=0 ? String(r[idx.storageLocation]).trim() : null,
+        description: idx.materialDescription>=0 ? String(r[idx.materialDescription]).trim() : null,
+      };
+    }
+    return {
+      material: idx.material>=0 ? String(r[idx.material]).trim() : '',
+      stock: idx.stockQty>=0 ? parseSAPNumber(r[idx.stockQty]) : 0,
+      storageLocation: idx.storageLocation>=0 ? String(r[idx.storageLocation]).trim() : null,
+      uom: idx.baseUoM>=0 ? String(r[idx.baseUoM]).trim() : null,
+      description: idx.materialDescription>=0 ? String(r[idx.materialDescription]).trim() : null,
+    };
+  }).filter(r => r.material);
+}
+
+// ---------- file handling ----------
+async function handleFile(kind, file){
+  if (!file){ state[kind] = emptyFileState(); renderCard(kind); renderDashboard(); return; }
+  state[kind] = { ...emptyFileState(), fileName:file.name, status:'loading' };
+  renderCard(kind);
+  try {
+    const { headers, rawRows } = await readSheet(file);
+    const mapping = buildMapping(headers, FIELD_DEFS[kind]);
+    const missingRequired = FIELD_DEFS[kind].some(d => d.required && !mapping[d.key]);
+    const rows = missingRequired ? null : finalizeRows(headers, rawRows, mapping, kind);
+    state[kind] = { status: rows ? 'ready':'mapping', fileName:file.name, headers, rawRows, mapping, rows, error:null };
+  } catch(err){
+    state[kind] = { ...emptyFileState(), fileName:file.name, error: err.message || 'Failed to parse file.' };
+  }
+  renderCard(kind);
+  renderDashboard();
+}
+function onMappingChange(kind, key, value){
+  state[kind].mapping[key] = value || null;
+  state[kind].status = 'mapping';
+  renderCard(kind, true);
+}
+function confirmMapping(kind){
+  const s = state[kind];
+  s.rows = finalizeRows(s.headers, s.rawRows, s.mapping, kind);
+  s.status = 'ready';
+  renderCard(kind);
+  renderDashboard();
+}
+function resetAll(){
+  state.mb51 = emptyFileState(); state.mb52 = emptyFileState();
+  renderCard('mb51'); renderCard('mb52'); renderDashboard();
+}
+
+// ---------- render: upload cards ----------
+const TITLES = { mb51:{title:'MB51 — Material Movements', hint:'Goods receipts &amp; issues'}, mb52:{title:'MB52 — Warehouse Stock', hint:'Current stock snapshot'} };
+
+function renderCard(kind, keepMapOpen){
+  const s = state[kind];
+  const el = document.getElementById('card-' + kind);
+  const t = TITLES[kind];
+  const defs = FIELD_DEFS[kind];
+  const missingRequired = s.headers ? defs.filter(d => d.required && !s.mapping[d.key]) : [];
+  const mapOpen = keepMapOpen || missingRequired.length > 0;
+
+  let html = `<div class="card-head"><div><div class="eyebrow">${t.hint}</div><h3 class="card-title">${t.title}</h3></div>${s.status==='ready' ? '<span style="color:var(--moss);font-size:18px;">&#10003;</span>' : ''}</div>`;
+
+  if (!s.headers){
+    html += `<label class="drop">
+      <span style="font-size:18px;">&#8593;</span>
+      <span>Choose file (.xlsx, .xls, .csv)</span>
+      <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile('${kind}', this.files[0])" />
+    </label>`;
+  }
+
+  if (s.error){
+    html += `<div class="alert">⚠ <span>${esc(s.error)}</span></div>`;
+  }
+
+  if (s.headers){
+    html += `<div class="loaded-row"><span class="filename">${esc(s.fileName)}</span><span class="rowcount">${s.rawRows.length.toLocaleString()} rows</span></div>`;
+
+    if (missingRequired.length > 0){
+      html += `<div class="alert">⚠ <span>Couldn't auto-detect: ${missingRequired.map(d=>esc(d.label)).join(', ')}. Map them below.</span></div>`;
+    }
+
+    html += `<button class="linklike" onclick="toggleMap('${kind}')">${mapOpen ? 'Column mapping ▲' : 'Verify column mapping ▼'}</button>`;
+
+    if (mapOpen){
+      html += `<div class="mapgrid">`;
+      defs.forEach(d => {
+        html += `<div class="mapfield"><label>${esc(d.label)}${d.required ? '<span class="req">*</span>' : ''}</label>
+          <select onchange="onMappingChange('${kind}','${d.key}', this.value)">
+            <option value="">— not used —</option>
+            ${s.headers.map(h => `<option value="${esc(h)}" ${s.mapping[d.key]===h?'selected':''}>${esc(h)}</option>`).join('')}
+          </select></div>`;
+      });
+      const disabled = defs.some(d => d.required && !s.mapping[d.key]);
+      html += `<button class="btn" ${disabled?'disabled':''} onclick="confirmMapping('${kind}')">${s.status==='ready' ? 'Re-apply mapping' : 'Confirm &amp; load'}</button>`;
+      html += `</div>`;
+    }
+
+    html += `<button class="linklike reset-file" onclick="handleFile('${kind}', null)">↺ Choose a different file</button>`;
+  }
+
+  el.innerHTML = html;
+  document.getElementById('resetAllBtn').style.display = (state.mb51.headers || state.mb52.headers) ? 'inline-flex' : 'none';
+}
+window._mapOpenState = { mb51:false, mb52:false };
+function toggleMap(kind){
+  window._mapOpenState[kind] = !window._mapOpenState[kind];
+  renderCard(kind, window._mapOpenState[kind]);
+}
+
+// ---------- KPI computation ----------
+function getFilters(){
+  return {
+    uom: document.getElementById('uomFilter')?.value || 'ALL',
+    material: document.getElementById('itemFilter')?.value || 'ALL'
+  };
+}
+
+function computeKPIs(){
+  if (state.mb51.status !== 'ready' || state.mb52.status !== 'ready') return null;
+  const mb51Rows = state.mb51.rows, mb52Rows = state.mb52.rows;
+  const filters = getFilters();
+
+  const uomByMaterial = new Map();
+  const descByMaterial = new Map();
+  const uomSet = new Set();
+
+  mb52Rows.forEach(r => {
+    if (r.uom) uomSet.add(r.uom);
+    if (!uomByMaterial.has(r.material)) uomByMaterial.set(r.material, r.uom || 'Unspecified');
+    if (r.description) descByMaterial.set(r.material, r.description);
+  });
+
+  // UOM filter is based on MB52's Base UoM. Movement-only materials remain
+  // visible under "Unspecified" if they have no corresponding MB52 UoM.
+  // Item selection is graph-only. UOM remains the dashboard-wide filter.
+  const materialAllowed = m => {
+    const u = uomByMaterial.get(m) || 'Unspecified';
+    return filters.uom === 'ALL' || u === filters.uom;
+  };
+
+  const stockByMaterial = new Map();
+  let currentStock = 0;
+  mb52Rows.forEach(r => {
+    if (!materialAllowed(r.material)) return;
+    currentStock += r.stock;
+    stockByMaterial.set(r.material, (stockByMaterial.get(r.material)||0) + r.stock);
+    if (r.description) descByMaterial.set(r.material, r.description);
+  });
+
+  const activeSKU = [...stockByMaterial.values()].filter(v => v > 0).length;
+  const stockByLocation = new Map();
+  mb52Rows.forEach(r => {
+    if (!materialAllowed(r.material)) return;
+    const loc = r.storageLocation || 'Unspecified';
+    stockByLocation.set(loc, (stockByLocation.get(loc)||0) + r.stock);
+  });
+
+  let totalGR = 0, totalGI = 0;
+  const movementByMaterial = new Map();
+  const monthly = new Map();
+  let minDate = null, maxDate = null;
+
+  mb51Rows.forEach(r => {
+    if (!materialAllowed(r.material)) return;
+    const isReceipt = r.dc ? r.dc === 'S' : r.quantity >= 0;
+    const qty = Math.abs(r.quantity);
+    if (isReceipt) totalGR += qty; else totalGI += qty;
+    movementByMaterial.set(r.material, (movementByMaterial.get(r.material)||0) + qty);
+    if (r.description) descByMaterial.set(r.material, r.description);
+    if (r.date){
+      if (!minDate || r.date < minDate) minDate = r.date;
+      if (!maxDate || r.date > maxDate) maxDate = r.date;
+      const key = `${r.date.getFullYear()}-${String(r.date.getMonth()+1).padStart(2,'0')}`;
+      const m = monthly.get(key) || {gr:0, gi:0};
+      if (isReceipt) m.gr += qty; else m.gi += qty;
+      monthly.set(key, m);
+    }
+  });
+
+  const netMovement = totalGR - totalGI;
+  const stockMovement = totalGR + totalGI;
+  const materialsInStock = [...stockByMaterial.keys()];
+  const movedMaterials = new Set(movementByMaterial.keys());
+  const nonMoving = materialsInStock.filter(m => !movedMaterials.has(m));
+
+  const movedList = [...movementByMaterial.entries()].sort((a,b)=>b[1]-a[1]);
+  const fastCutoff = Math.max(1, Math.ceil(movedList.length * 0.2));
+  const fastMoving = movedList.slice(0, fastCutoff);
+  const slowMoving = movedList.slice(fastCutoff);
+
+  const monthlyArr = [...monthly.entries()].sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([month,v])=>({month, GR:Math.round(v.gr), GI:Math.round(v.gi)}));
+  const locationArr = [...stockByLocation.entries()]
+    .map(([location,stock])=>({location, stock:Math.round(stock)}))
+    .sort((a,b)=>b.stock-a.stock);
+
+  const daysSpan = (minDate && maxDate) ? Math.max(1, Math.round((maxDate-minDate)/86400000)+1) : null;
+  const avgDailyIssue = daysSpan ? totalGI/daysSpan : null;
+  const turnover = currentStock > 0 ? totalGI/currentStock : null;
+  const coverage = avgDailyIssue > 0 ? currentStock/avgDailyIssue : null;
+
+  const withDesc = m => descByMaterial.get(m) ? `${m} — ${descByMaterial.get(m)}` : m;
+
+  // Separate item-level graph series. This never changes the main KPIs.
+  let selectedItemMonthlyArr = [];
+  if (filters.material !== 'ALL') {
+    const itemMonthly = new Map();
+    mb51Rows.forEach(r => {
+      if (r.material !== filters.material || !r.date) return;
+      const itemUom = uomByMaterial.get(r.material) || 'Unspecified';
+      if (filters.uom !== 'ALL' && itemUom !== filters.uom) return;
+      const isReceipt = r.dc ? r.dc === 'S' : r.quantity >= 0;
+      const qty = Math.abs(r.quantity);
+      const key = `${r.date.getFullYear()}-${String(r.date.getMonth()+1).padStart(2,'0')}`;
+      const m = itemMonthly.get(key) || {gr:0, gi:0};
+      if (isReceipt) m.gr += qty; else m.gi += qty;
+      itemMonthly.set(key, m);
+    });
+    selectedItemMonthlyArr = [...itemMonthly.entries()]
+      .sort((a,b)=>a[0].localeCompare(b[0]))
+      .map(([month,v])=>({month, GR:Math.round(v.gr), GI:Math.round(v.gi)}));
+  }
+
+  return {
+    currentStock, totalGR, totalGI, netMovement, stockMovement, activeSKU,
+    fastMovingCount: fastMoving.length, slowMovingCount: slowMoving.length, nonMovingCount: nonMoving.length,
+    monthlyArr, locationArr, turnover, coverage, daysSpan, multiUom: uomSet.size > 1,
+    selectedUom: filters.uom, selectedMaterial: filters.material, selectedItemMonthlyArr,
+    fastMoving: fastMoving.map(([m,q])=>({label:withDesc(m), qty:q})),
+    slowMoving: slowMoving.map(([m,q])=>({label:withDesc(m), qty:q})),
+    nonMoving: nonMoving.map(m=>({label:withDesc(m), qty:stockByMaterial.get(m)})),
+  };
+}
+
+function getAvailableUOMs(){
+  if (state.mb51.status !== 'ready' || state.mb52.status !== 'ready') return [];
+  const set = new Set();
+  state.mb52.rows.forEach(r => set.add(r.uom || 'Unspecified'));
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+
+function getAvailableMaterials(){
+  if (state.mb51.status !== 'ready' || state.mb52.status !== 'ready') return [];
+  const set = new Set();
+  state.mb52.rows.forEach(r => set.add(r.material));
+  state.mb51.rows.forEach(r => set.add(r.material));
+  return [...set].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+}
+
+function renderFilters(){
+  const uoms = getAvailableUOMs();
+  const materials = getAvailableMaterials();
+  const prev = getFilters();
+
+  const uomOptions = [`<option value="ALL">All UOMs (${uoms.length})</option>`]
+    .concat(uoms.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`)).join('');
+  const itemOptions = [`<option value="ALL">All Items (${materials.length})</option>`]
+    .concat(materials.map(m=>{
+      const d = state.mb52.rows.find(r=>r.material===m)?.description ||
+                state.mb51.rows.find(r=>r.material===m)?.description || '';
+      const label = d ? `${m} — ${d}` : m;
+      return `<option value="${esc(m)}">${esc(label)}</option>`;
+    })).join('');
+
+  return `<div class="filters">
+    <div class="filter-box">
+      <label>Unit of Measure</label>
+      <select id="uomFilter" onchange="applyFilters()">
+        ${uomOptions}
+      </select>
+    </div>
+    <div class="filter-box">
+      <label>Item / Material — Graph Only</label>
+      <select id="itemFilter" onchange="applyFilters()">
+        ${itemOptions}
+      </select>
+    </div>
+    <div class="filter-status" id="filterStatus">All data</div>
+  </div>`;
+}
+
+function applyFilters(){
+  const u = document.getElementById('uomFilter')?.value || 'ALL';
+  const m = document.getElementById('itemFilter')?.value || 'ALL';
+  renderDashboard(u,m);
+}
+
+
+// ---------- render: dashboard ----------
+function kpiCard(icon, label, value, sub, tone){
+  return `<div class="kpi"><div class="kpi-icon tone-${tone||'steel'}">${icon}</div>
+    <div class="kpi-value">${value}</div><div class="kpi-label">${label}</div>
+    ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}</div>`;
+}
+
+function renderDashboard(){
+  const area = document.getElementById('dashboardArea');
+  const kpis = computeKPIs();
+
+  if (!kpis){
+    const msg = (state.mb51.status==='ready' || state.mb52.status==='ready')
+      ? 'Load the other file to compute the dashboard.'
+      : 'Upload both files above to see your KPIs.';
+    area.innerHTML = `<div class="placeholder">${msg}</div>`;
+    return;
+  }
+
+  let html = `<div class="dashboard-shell">${renderFilters()}`;
+  const activeFilterText =
+    (kpis.selectedUom !== 'ALL' ? `UOM: ${esc(kpis.selectedUom)}` : 'All UOMs');
+
+  html += `<div class="item-selected">
+    Main KPI filter: <strong>${activeFilterText}</strong>
+    <span style="margin-left:10px;">• Item selection is for the <strong>graph only</strong>.</span>
+  </div>`;
+
+  html += `<div class="kpigrid">
+    ${kpiCard('▣','Current Stock', fmtInt(kpis.currentStock), null, 'steel')}
+    ${kpiCard('↓','Total GR', fmtInt(kpis.totalGR), null, 'moss')}
+    ${kpiCard('↑','Total GI', fmtInt(kpis.totalGI), null, 'rust')}
+    ${kpiCard('±','Net Movement', fmtInt(kpis.netMovement), kpis.netMovement>=0?'net inflow':'net outflow', 'steel')}
+    ${kpiCard('▤','Stock Movement', fmtInt(kpis.stockMovement), 'total GR + GI volume', 'steel')}
+    ${kpiCard('▣','Active SKUs', fmtInt(kpis.activeSKU), null, 'steel')}
+    ${kpiCard('↓','Fast Moving Items', fmtInt(kpis.fastMovingCount), 'top 20% by movement', 'moss')}
+    ${kpiCard('◷','Slow Moving Items', fmtInt(kpis.slowMovingCount), 'moved, below top 20%', 'amber')}
+    ${kpiCard('⚠','Non-Moving Items', fmtInt(kpis.nonMovingCount), 'in stock, no movement', 'rust')}
+    ${kpiCard('◎','Inventory Turnover', fmtDec(kpis.turnover), 'GI ÷ current stock', 'steel')}
+    ${kpiCard('◷','Stock Coverage', kpis.coverage!=null ? fmtDec(kpis.coverage,1)+' days' : '—', kpis.daysSpan?`over ${kpis.daysSpan}-day window`:'', 'steel')}
+  </div>`;
+
+  const monthsShown = kpis.monthlyArr.slice(-8);
+  const maxMonthVal = Math.max(1, ...monthsShown.flatMap(m => [m.GR, m.GI]));
+  html += `<div class="charts">
+    <div class="chartcard">
+      <h4>Monthly GR / GI — Main KPI View</h4>
+      <div class="bars-row">
+        ${monthsShown.length ? monthsShown.map(m => `
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar bar-gr" style="height:${Math.max(2, (m.GR/maxMonthVal)*150)}px" title="GR: ${fmtInt(m.GR)}"></div>
+              <div class="bar bar-gi" style="height:${Math.max(2, (m.GI/maxMonthVal)*150)}px" title="GI: ${fmtInt(m.GI)}"></div>
+            </div>
+            <div class="bar-label">${m.month}</div>
+          </div>`).join('') :
+          `<div style="width:100%;text-align:center;color:var(--muted);font-size:12px;padding-top:70px">No dated movement available for this filter.</div>`}
+      </div>
+      <div class="legend"><span><span class="swatch" style="background:var(--moss)"></span>GR</span><span><span class="swatch" style="background:var(--rust)"></span>GI</span></div>
+    </div>
+    <div class="chartcard">
+      <h4>Stock by Storage Location</h4>
+      ${(() => {
+        const top = kpis.locationArr.slice(0,8);
+        if (!top.length) return `<div style="font-size:12px;color:var(--muted)">No stock data for this filter.</div>`;
+        const maxLoc = Math.max(1, ...top.map(l=>l.stock));
+        return top.map(l => `
+          <div class="loc-bar-row">
+            <div class="loc-name" title="${esc(l.location)}">${esc(l.location)}</div>
+            <div class="loc-track"><div class="loc-fill" style="width:${Math.max(2,(l.stock/maxLoc)*100)}%"></div></div>
+            <div class="loc-val">${fmtInt(l.stock)}</div>
+          </div>`).join('');
+      })()}
+    </div>
+  </div>`;
+
+  if (kpis.selectedMaterial !== 'ALL') {
+    const itemMonths = kpis.selectedItemMonthlyArr || [];
+    const itemMax = Math.max(1, ...itemMonths.flatMap(m => [m.GR, m.GI]));
+    const itemDesc = state.mb52.rows.find(r=>r.material===kpis.selectedMaterial)?.description ||
+                     state.mb51.rows.find(r=>r.material===kpis.selectedMaterial)?.description || '';
+
+    html += `<div class="chartcard" style="margin-bottom:20px;">
+      <h4>Selected Item Movement — ${esc(kpis.selectedMaterial)}${itemDesc ? ` — ${esc(itemDesc)}` : ''}</h4>
+      <div style="font-size:11.5px;color:var(--muted);margin:-7px 0 12px;">
+        Item-level graphical indicator. The main KPI indicators above are unchanged.
+      </div>
+      <div class="bars-row">
+        ${itemMonths.length ? itemMonths.map(m => `
+          <div class="bar-group">
+            <div class="bar-pair">
+              <div class="bar bar-gr" style="height:${Math.max(2,(m.GR/itemMax)*150)}px" title="GR: ${fmtInt(m.GR)}"></div>
+              <div class="bar bar-gi" style="height:${Math.max(2,(m.GI/itemMax)*150)}px" title="GI: ${fmtInt(m.GI)}"></div>
+            </div>
+            <div class="bar-label">${m.month}</div>
+          </div>`).join('') :
+          `<div style="width:100%;text-align:center;color:var(--muted);font-size:12px;padding-top:70px">
+            No dated movement found for this item.
+          </div>`}
+      </div>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--moss)"></span>GR</span>
+        <span><span class="swatch" style="background:var(--rust)"></span>GI</span>
+      </div>
+    </div>`;
+
+    const trend = renderConsumptionTrendChart(itemMonths);
+    html += `<div class="chartcard" style="margin-bottom:20px;">
+      <div class="trend-head">
+        <h4 style="margin:0;">Consumption Trend Analysis — ${esc(kpis.selectedMaterial)}${itemDesc ? ` — ${esc(itemDesc)}` : ''}</h4>
+        ${trend.badge ? `<span class="trend-badge ${trend.badgeClass}">${trend.badge}</span>` : ''}
+      </div>
+      <div class="trend-note">Monthly goods-issue (consumption) volume for the selected item, with a linear trend line.</div>
+      ${trend.svg}
+      <div class="trend-legend">
+        <span><span class="trend-swatch" style="background:#8e44ad"></span>Monthly consumption (GI)</span>
+        <span><span class="trend-swatch" style="background:#e67e22;border-top:2px dashed #e67e22;height:0;"></span>Linear trend</span>
+      </div>
+    </div>`;
+  }
+
+  const listDefs = [
+    { key:'fastMoving', title:'Fast Moving Items' },
+    { key:'slowMoving', title:'Slow Moving Items' },
+    { key:'nonMoving', title:'Non-Moving Items' },
+  ];
+  html += `<div class="lists">`;
+  listDefs.forEach(({key,title}) => {
+    const list = kpis[key];
+    const expanded = listExpand[key];
+    const shown = expanded ? list : list.slice(0,8);
+    html += `<div class="listcard"><h4>${esc(title)} (${list.length})</h4>`;
+    if (shown.length === 0) html += `<div style="font-size:12.5px;color:var(--muted)">None.</div>`;
+    shown.forEach(item => { html += `<div class="listrow"><span title="${esc(item.label)}">${esc(item.label)}</span><span>${fmtInt(item.qty)}</span></div>`; });
+    if (list.length > 8){
+      html += `<button class="listmore" onclick="toggleList('${key}')">${expanded ? 'Show less' : `Show all ${list.length}`}</button>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div></div>`;
+
+  area.innerHTML = html;
+
+  const u = document.getElementById('uomFilter');
+  const m = document.getElementById('itemFilter');
+  if (u) u.value = kpis.selectedUom;
+  if (m) m.value = kpis.selectedMaterial;
+
+  const status = document.getElementById('filterStatus');
+  if (status) {
+    status.textContent =
+      kpis.selectedMaterial === 'ALL'
+        ? (kpis.selectedUom === 'ALL' ? 'All data' : `KPI UOM: ${kpis.selectedUom}`)
+        : `Graph: ${kpis.selectedMaterial}`;
+  }
+}
+
+// ---------- consumption trend analysis (line chart) ----------
+function linearTrend(values){
+  const n = values.length;
+  if (n < 2) return { slope:0, intercept: values[0]||0 };
+  const xs = values.map((_,i)=>i);
+  const sumX = xs.reduce((a,b)=>a+b,0);
+  const sumY = values.reduce((a,b)=>a+b,0);
+  const sumXY = xs.reduce((a,x,i)=>a+x*values[i],0);
+  const sumXX = xs.reduce((a,x)=>a+x*x,0);
+  const denom = (n*sumXX - sumX*sumX) || 1;
+  const slope = (n*sumXY - sumX*sumY)/denom;
+  const intercept = (sumY - slope*sumX)/n;
+  return { slope, intercept };
+}
+
+function renderConsumptionTrendChart(itemMonths){
+  if (!itemMonths.length){
+    return { svg:`<div style="text-align:center;color:var(--muted);font-size:12px;padding:60px 0;">No consumption (GI) history found for this item.</div>`, badge:'', badgeClass:'trend-flat' };
+  }
+  const values = itemMonths.map(m => m.GI);
+  const n = values.length;
+  const W = 700, H = 220, padL = 42, padR = 16, padT = 14, padB = 26;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxV = Math.max(1, ...values);
+  const xStep = n > 1 ? innerW/(n-1) : 0;
+
+  const pts = values.map((v,i) => ({
+    x: padL + (n > 1 ? i*xStep : innerW/2),
+    y: padT + innerH - (v/maxV)*innerH,
+    v, month: itemMonths[i].month
+  }));
+
+  const linePath = pts.map((p,i) => (i===0?'M':'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const baseY = (padT+innerH).toFixed(1);
+  const areaPath = `${linePath} L${pts[n-1].x.toFixed(1)},${baseY} L${pts[0].x.toFixed(1)},${baseY} Z`;
+
+  const { slope, intercept } = linearTrend(values);
+  const clampY = y => Math.max(padT, Math.min(padT+innerH, y));
+  const trendPath = values.map((_,i) => {
+    const y = clampY(padT + innerH - ((slope*i+intercept)/maxV)*innerH);
+    return (i===0?'M':'L') + pts[i].x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  const gridLines = [0,0.25,0.5,0.75,1].map(f => {
+    const y = padT + innerH - f*innerH;
+    return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="#E3E8ED" stroke-width="1"/>
+      <text x="${padL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="#8593A1" text-anchor="end">${fmtInt(maxV*f)}</text>`;
+  }).join('');
+
+  const labelEvery = Math.max(1, Math.ceil(n/9));
+  const xLabels = pts.map((p,i) => (i % labelEvery === 0 || i === n-1)
+    ? `<text x="${p.x.toFixed(1)}" y="${H-8}" font-size="9" fill="#8593A1" text-anchor="middle">${esc(p.month)}</text>` : '').join('');
+
+  const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.6" fill="#8e44ad" stroke="#fff" stroke-width="1.5"><title>${esc(p.month)}: ${fmtInt(p.v)} consumed</title></circle>`).join('');
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+    <defs>
+      <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8e44ad" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#8e44ad" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${gridLines}
+    <path d="${areaPath}" fill="url(#trendFill)" stroke="none"/>
+    <path d="${linePath}" fill="none" stroke="#8e44ad" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${trendPath}" fill="none" stroke="#e67e22" stroke-width="1.6" stroke-dasharray="5,4" stroke-linecap="round"/>
+    ${dots}
+    ${xLabels}
+  </svg>`;
+
+  const threshold = 0.02 * maxV;
+  let badge, badgeClass;
+  if (slope > threshold){ badge = '▲ Rising consumption trend'; badgeClass = 'trend-up'; }
+  else if (slope < -threshold){ badge = '▼ Falling consumption trend'; badgeClass = 'trend-down'; }
+  else { badge = '▬ Stable consumption trend'; badgeClass = 'trend-flat'; }
+
+  return { svg, badge, badgeClass };
+}
+
+function toggleList(key){ listExpand[key] = !listExpand[key]; renderDashboard(); }
+
+// ---------- init ----------
+renderCard('mb51'); renderCard('mb52'); renderDashboard();
+</script>
+</body>
+</html>
